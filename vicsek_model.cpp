@@ -6,6 +6,7 @@
 #include<fstream>
 #include<vector>
 #include<iomanip>
+#include<array>
 
 using namespace std;
 
@@ -17,7 +18,7 @@ constexpr double RADIUS=1.0; //this need to be revised into topological interact
 constexpr double RADIUS2=RADIUS*RADIUS;
 constexpr double COUPLING=1.0;//这个没用到
 constexpr float dt=0.1;
-constexpr float L = 1.0f;
+constexpr float L = 5.0f;
 constexpr int n_topos=7;//range of topological interactions
 
 //random number generator
@@ -51,7 +52,7 @@ void UpdateState(std::vector<particle>& particles)
     {
         particle &p = particles[i];
         double new_theta = 0.0;
-        int neighbours = 0; //这里还不是拓扑相互作用，是r以内的align
+        int n_neigh = 0; //这里还不是拓扑相互作用，是r以内的align
         double tan_neigh = 0.0;
         double noise = 0.0;
 
@@ -69,26 +70,23 @@ void UpdateState(std::vector<particle>& particles)
         if (copy_p.y >= L) copy_p.y -= L;
 
         //update orientation(注意这里和文章不一样，文章是平均的向量，这里是tan_theta)
-        for (int j = 0; j < TOT_particles; ++j) 
+        vector<particle> neighbours = CellList(i, particles); 
+
+        for (particle j_p : neighbours)
         {
-            //judge if the particle is within range r
-            if (i != j) 
+            double dist_x = p.x - j_p.x;
+            double dist_y = p.y - j_p.y;
+            if (dist_x*dist_x + dist_y*dist_y < RADIUS2) 
             {
-                particle j_p = particles[j];
-                double dist_x = p.x - j_p.x;
-                double dist_y = p.y - j_p.y;
-                if (dist_x*dist_x + dist_y*dist_y < RADIUS2) 
-                {
-                    double tan_j = tan(j_p.theta);
-                    tan_neigh += tan_j;
-                    neighbours++;
-                }
+                double tan_j = tan(j_p.theta);
+                tan_neigh += tan_j;
+                n_neigh++;
             }
-            if (i==j) continue;
+            
         }
 
         tan_neigh += tan(p.theta); //include particle i
-        tan_neigh /= (neighbours+1);
+        tan_neigh /= (n_neigh+1);
         new_theta = std::atan(tan_neigh);
         noise = dis_theta(rng);
         new_theta += noise;
@@ -97,6 +95,61 @@ void UpdateState(std::vector<particle>& particles)
     }
 
     particles = std::move(copy_particles);
+}
+
+vector<particle> CellList(int id, vector<particle> particles)
+{
+    vector<particle> neighbours;
+    vector<vector<int>> cell_list;
+    int N_cell = floor(L/RADIUS);
+    double L_cell = L/N_cell;
+    //binning the particles into cells
+    cell_list.resize(N_cell*N_cell);
+    for (int i=0; i< TOT_particles; ++i)
+    {
+        int cx=0,cy=0,id_cell=0;
+        particle p = particles[i];
+        cx = floor(p.x/L_cell);
+        cy = floor(p.y/L_cell);
+        if (cx>=N_cell) cx -= N_cell;
+        if (cy>=N_cell) cy -= N_cell;
+        id_cell = cx + cy*N_cell;
+        cell_list[id_cell].push_back(i);
+    }
+    //find the cell of particle id
+    particle p = particles[id];
+    int cx = floor(p.x/L_cell);
+    int cy = floor(p.y/L_cell);
+    if (cx>=N_cell) cx -= N_cell;
+    if (cy>=N_cell) cy -= N_cell;
+    int id_cell = cx + cy*N_cell;
+    //find the neighbours of cell of id
+    array<int,9> cell_neigh_list = {0,0,0,0,0,0,0,0,0};
+    int x_left=cx-1<0?N_cell+cx-1:cx-1;
+    int x_right=cx+1>=N_cell?cx+1-N_cell:cx+1;
+    int y_up=cy-1<0?N_cell+cy-1:cy-1;
+    int y_down=cy+1>=N_cell?cy+1-N_cell:cy+1;
+    array<int,3> cell_x_list={x_left,cx,x_right};
+    array<int,3> cell_y_list={y_up,cy,y_down};
+    for (int i=0;i<3;++i)
+    {
+        for (int j=0;j<3;++j)
+        {
+            int cn = cell_x_list[i] + cell_y_list[j]*N_cell;
+            cell_neigh_list[i+j*3] = cn;
+        }
+    }
+    for (int j : cell_neigh_list)
+    {
+        for (int k : cell_list[j])
+        {
+            if (k != id)//exclude itself
+            {
+                neighbours.push_back(particles[k]);
+            }
+        }
+    }
+    return neighbours;
 }
 
 int main()
