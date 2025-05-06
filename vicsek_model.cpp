@@ -5,14 +5,13 @@
 #include<random>
 #include<fstream>
 #include<vector>
-#include<numbers>
 #include<iomanip>
 
 using namespace std;
 
-const double PI = 3.14159265358979323846;
+const double eta = 0.1;
 constexpr int TOT_particles = 512;
-constexpr int STEPS = 10000;
+constexpr int STEPS = 1000;
 constexpr double SPEED=1.0;
 constexpr double RADIUS=1.0; //this need to be revised into topological interactions,between the first n neighbours
 constexpr double RADIUS2=RADIUS*RADIUS;
@@ -24,7 +23,7 @@ constexpr int n_topos=7;//range of topological interactions
 //random number generator
 static std::mt19937 rng(std::random_device{}());
 static uniform_real_distribution<> dis(0,L);
-static std::uniform_real_distribution<> dis_theta(-PI, PI); 
+static std::uniform_real_distribution<> dis_theta(-eta, eta); 
 
 //store position and orientation of particles
 struct particle 
@@ -34,6 +33,7 @@ struct particle
 
 void initiate(std::vector<particle>& particles)
 {
+    particles.resize(TOT_particles);
     for (int i=0;i < TOT_particles;++i)
     {
         particle &p = particles[i];
@@ -74,26 +74,26 @@ void UpdateState(std::vector<particle>& particles)
             //judge if the particle is within range r
             if (i != j) 
             {
-                particle j_P = particles[j];
-                double dist_x = p.x - j_P.x;
-                double dist_y = p.y - j_P.y;
+                particle j_p = particles[j];
+                double dist_x = p.x - j_p.x;
+                double dist_y = p.y - j_p.y;
                 if (dist_x*dist_x + dist_y*dist_y < RADIUS2) 
                 {
-                    double tan_j = tan(j_P.theta);
+                    double tan_j = tan(j_p.theta);
                     tan_neigh += tan_j;
                     neighbours++;
                 }
             }
             if (i==j) continue;
-
-            tan_neigh += tan(p.theta); //include particle i
-            tan_neigh /= (neighbours+1);
-            new_theta = std::atan(tan_neigh);
-            noise = dis_theta(rng);
-            new_theta += noise;
-
-            copy_p.theta = new_theta;
         }
+
+        tan_neigh += tan(p.theta); //include particle i
+        tan_neigh /= (neighbours+1);
+        new_theta = std::atan(tan_neigh);
+        noise = dis_theta(rng);
+        new_theta += noise;
+
+        copy_p.theta = new_theta;
     }
 
     particles = std::move(copy_particles);
