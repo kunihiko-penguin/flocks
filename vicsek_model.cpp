@@ -44,6 +44,14 @@ void initiate(std::vector<particle>& particles)
     }
 }
 
+//shortest distance under PBC
+double periodic_dis(double x1, double x2)
+{
+    double dx = x1-x2;
+    dx -= L * std::round(dx/L);
+    return dx;
+}
+
 //update state of particles
 void UpdateState(std::vector<particle>& particles)
 {
@@ -74,15 +82,14 @@ void UpdateState(std::vector<particle>& particles)
 
         for (particle j_p : neighbours)
         {
-            double dist_x = p.x - j_p.x;
-            double dist_y = p.y - j_p.y;
+            double dist_x = periodic_dis(p.x, j_p.x);
+            double dist_y = periodic_dis(p.y, j_p.y);
             if (dist_x*dist_x + dist_y*dist_y < RADIUS2) 
             {
                 double tan_j = tan(j_p.theta);
                 tan_neigh += tan_j;
                 n_neigh++;
             }
-            
         }
 
         tan_neigh += tan(p.theta); //include particle i
@@ -97,7 +104,7 @@ void UpdateState(std::vector<particle>& particles)
     particles = std::move(copy_particles);
 }
 
-vector<particle> CellList(int id, vector<particle> particles)
+vector<particle> CellList(int id, vector<particle>& particles)
 {
     vector<particle> neighbours;
     vector<vector<int>> cell_list;
@@ -160,6 +167,10 @@ int main()
     initiate(particles);
 
     std::ofstream file("particles.csv");
+    if (!file.is_open()) {
+        std::cerr << "failed" << std::endl;
+        return 1;
+    }
     file<<"step,id,x,y,theta\n";
     file<< std::fixed << std::setprecision(6);
 
