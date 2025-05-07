@@ -11,13 +11,13 @@
 using namespace std;
 
 const double eta = 0.1;
-constexpr int TOT_particles = 512;
+constexpr int TOT_particles = 300;
 constexpr int STEPS = 1000;
-constexpr double SPEED=1.0;
+constexpr double SPEED=0.03;
 constexpr double RADIUS=1.0; //this need to be revised into topological interactions,between the first n neighbours
 constexpr double RADIUS2=RADIUS*RADIUS;
 constexpr double COUPLING=1.0;//这个没用到
-constexpr float dt=0.1;
+constexpr float dt=1;
 constexpr float L = 5.0f;
 constexpr int n_topos=7;//range of topological interactions
 
@@ -25,6 +25,13 @@ constexpr int n_topos=7;//range of topological interactions
 static std::mt19937 rng(std::random_device{}());
 static uniform_real_distribution<> dis(0,L);
 static std::uniform_real_distribution<> dis_theta(-eta, eta); 
+
+// function prototypes
+struct particle;
+void initiate(std::vector<particle>& particles);
+void UpdateState(std::vector<particle>& particles);
+std::vector<particle> CellList(int id, std::vector<particle>& particles);
+double periodic_dis(double x1, double x2);
 
 //store position and orientation of particles
 struct particle 
