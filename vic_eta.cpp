@@ -7,25 +7,29 @@
 #include<vector>
 #include<iomanip>
 #include<array>
+#include<sstream>
 
 using namespace std;
 
-const double eta = 0.1;
-constexpr int TOT_particles = 300;
+double eta = 0.0;
+double L = 3.1;  // 移除 constexpr
+int TOT_particles = 40;  // 移除 constexpr
 constexpr int STEPS = 1000;
 constexpr double SPEED=0.03;
 constexpr double RADIUS=1.0; //this need to be revised into topological interactions,between the first n neighbours
 constexpr double RADIUS2=RADIUS*RADIUS;
 constexpr double COUPLING=1.0;//这个没用到
 constexpr float dt=1;
-constexpr float L = 5.0f;
 constexpr int n_topos=7;//range of topological interactions
 constexpr double PI = 3.14159265358979323846;
+
+// Output folder
+const string folder="eta";
 
 //random number generator
 static std::mt19937 rng(std::random_device{}());
 static uniform_real_distribution<> dis(0,L);
-static std::uniform_real_distribution<> dis_eta(-eta, eta); 
+static std::uniform_real_distribution<> dis_eta(-1, 1); 
 static std::uniform_real_distribution<> dis_theta(-PI, PI); 
 
 // function prototypes
@@ -104,7 +108,7 @@ void UpdateState(std::vector<particle>& particles)
         tan_neigh += tan(p.theta); //include particle i
         tan_neigh /= (n_neigh+1);
         new_theta = std::atan(tan_neigh);
-        noise = dis_eta(rng);
+        noise = dis_eta(rng)*eta;
         new_theta += noise;
 
         copy_p.theta = new_theta;
@@ -168,32 +172,76 @@ vector<particle> CellList(int id, vector<particle>& particles)
     return neighbours;
 }
 
-int main()
+int main() 
 {
-    std::vector<particle> particles;
-
-    //initialization
-    initiate(particles);
-
-    std::ofstream file("particles.csv");
-    if (!file.is_open()) {
-        std::cerr << "failed" << std::endl;
-        return 1;
-    }
-    file<<"step,id,x,y,theta\n";
-    file<< std::fixed << std::setprecision(6);
-
-    for (int step = 0; step<STEPS;++step)
+    // 定义不同的参数组合
+    struct SimParams {
+        int particles;
+        double size;
+        string foldername;
+    };
+    
+    vector<SimParams> params = {
+        {40, 3.1, "eta/N40"},
+        {100, 5.0, "eta/N100"},
+        {400, 10.0, "eta/N400"},
+        {4000, 31.6, "eta/N4000"},
+        {10000, 50.0, "eta/N10000"}
+    };
+    
+    // 设定 eta 的范围和步长
+    const double eta_start = 0.0;
+    const double eta_end = 5.0;
+    const double eta_step = 0.1;
+    
+    // 对每组参数进行模拟
+    for(const auto& param : params) 
     {
-        particle par;
-        for (int i =0; i<TOT_particles;++i)
+        cout << "Starting simulation for N = " << param.particles 
+             << ", L = " << param.size << endl;
+        
+        // 更新全局变量
+        TOT_particles = param.particles;
+        L = param.size;
+        
+        // 对每个 eta 值执行模拟
+        for(eta = eta_start; eta <= eta_end; eta += eta_step) 
         {
-            par=particles[i];
-            file<<step<<","<<i<<","<<par.x<<","<<par.y<<","<<par.theta<<"\n";
+            // 构建文件名
+            string filename = param.foldername + "/particles_eta_" + to_string(eta) + ".csv";
+            std::ofstream file(filename);
+            
+            if (!file.is_open()) {
+                std::cerr << "无法打开文件: " << filename << endl;
+                continue;
+            }
+            
+            // 初始化粒子系统
+            std::vector<particle> particles;
+            initiate(particles);
+            
+            // 写入CSV文件头
+            file << "step,id,x,y,theta\n";
+            file << std::fixed << std::setprecision(6);
+            
+            // 运行模拟
+            for (int step = 0; step < STEPS; ++step) 
+            {
+                for (int i = 0; i < TOT_particles; ++i) 
+                {
+                    const particle& par = particles[i];
+                    file << step << "," << i << "," << par.x << "," 
+                         << par.y << "," << par.theta << "\n";
+                }
+                UpdateState(particles);
+            }
+            
+            file.close();
+            cout << "完成 eta = " << eta << " 的模拟" << endl;
         }
-        UpdateState(particles);
+        cout << "完成 N = " << param.particles << " 的所有模拟" << endl;
     }
-    file.close();
-    cout<<"completed"<<endl;
+    
+    cout << "所有模拟完成" << endl;
     return 0;
 }

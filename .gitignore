@@ -2,3 +2,6 @@
 *.exe
 *.csv
 *.gif
+eta/
+rho/
+graph/
